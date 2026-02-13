@@ -1,3 +1,13 @@
+
+import os
+from flask import Flask, jsonify
+from pydantic import BaseModel, RootModel
+from typing import List, Optional
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql import func
+from dotenv import load_dotenv
+from urllib.parse import quote_plus
 import os
 from flask import Flask, jsonify
 from pydantic import BaseModel, RootModel
@@ -15,6 +25,10 @@ load_dotenv()
 
 # Configuración de la app Flask
 app = Flask(__name__)
+
+# Import necesarios para el endpoint de generación IA
+from openai import AzureOpenAI
+import json
 
 # Configuración de la base de datos MySQL
 DB_USER = os.getenv('DB_USER')
@@ -110,6 +124,56 @@ def create_content():
     db.session.commit()
     return jsonify(SocialMediaPostSchema.model_validate(post).model_dump()), 201
 
+# Endpoint POST /api/contents/generate
+@app.route('/api/contents/generate', methods=['POST'])
+def generate_content():
+    from flask import request
+    try:
+        data = request.get_json(force=True)
+        prompt = data.get("prompt")
+        if not prompt:
+            return jsonify({"detail": "Missing prompt"}), 400
+
+        client = AzureOpenAI(
+            api_key=os.getenv("AZURE_OPENAI_KEY"),
+            api_version="2024-02-01",
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        )
+
+        response = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres un generador experto de contenidos para redes sociales. "
+                        "Devuelve SIEMPRE un JSON estricto con las claves: platform, title, tone, content, hashtags. "
+                        "No incluyas explicaciones ni texto adicional, solo el JSON."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        content = response.choices[0].message.content
+        result = json.loads(content)
+
+        post = SocialMediaPost(
+            platform=result["platform"],
+            title=result["title"],
+            tone=result["tone"],
+            content=result["content"],
+            hashtags=result["hashtags"],
+            link=None
+        )
+        db.session.add(post)
+        db.session.commit()
+
+        return jsonify(SocialMediaPostSchema.model_validate(post).model_dump()), 201
+
+    except Exception as e:
+        return jsonify({"detail": f"Error al generar contenido: {str(e)}"}), 500
+    
 # Endpoint PUT /api/contents/<id>
 @app.route('/api/contents/<int:post_id>', methods=['PUT'])
 def update_content(post_id):

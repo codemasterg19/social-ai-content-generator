@@ -58,7 +58,43 @@ OPENAI_API_KEY=sk-xxxxxx
 - `POST /api/contents` — Crea un post
 - `GET /api/contents/<id>` — Obtiene un post por id
 - `PUT /api/contents/<id>` — Actualiza un post
-- `DELETE /api/contents/<id>` — Elimina un post
+
+- `POST /api/contents/generate` — Genera y guarda un post usando Azure OpenAI (ver detalles abajo)
+
+
+## Endpoint IA: Generador de contenido
+
+`POST /api/contents/generate`
+
+Este endpoint utiliza Azure OpenAI para generar automáticamente un post para redes sociales y lo guarda en la base de datos.
+
+**Request JSON:**
+```json
+{
+   "prompt": "Crea un post para anunciar un nuevo producto tecnológico."
+}
+```
+
+**Respuesta exitosa:**
+```json
+{
+   "id": 5,
+   "platform": "twitter",
+   "title": "¡Nuevo producto tecnológico!",
+   "tone": "emocionante",
+   "content": "Descubre nuestro último lanzamiento en tecnología...",
+   "hashtags": "#tecnología #innovación",
+   "link": null,
+   "created_at": "2024-02-13T12:34:56"
+}
+```
+
+**Variables de entorno necesarias para Azure OpenAI:**
+```
+AZURE_OPENAI_ENDPOINT=https://<tu-endpoint>.openai.azure.com/
+AZURE_OPENAI_KEY=tu_clave
+AZURE_OPENAI_DEPLOYMENT=nombre_del_deployment
+```
 
 ---
 No subas tu archivo `.env` real a GitHub.
